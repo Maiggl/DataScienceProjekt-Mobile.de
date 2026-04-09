@@ -7,85 +7,85 @@ import json
 API_KEY = "sk_ad_rmkZvJcwP9FccFOyOo9A9j9a"
 
 # Seiten-Parameter
-MAX_PAGES = 100
+MAX_PAGES = 10
 # ==========================================================================
 
-API_URL = "https://api.auto.dev/listings"
-OUTPUT_FILE = 'mercedes_s_klasse_final.csv'
+BASE_URL = "https://api.auto.dev/listings"
+OUTPUT_FILE = 'mercedes_s_klasse_datensatz.csv'
 
 headers = {
     'x-api-key': API_KEY
 }
 
-all_vehicles = []
+all_vehicles_for_csv = []
 processed_vins = set()
 
 try:
-    if API_KEY == "IHR_API_SCHLÜSSEL" or not API_KEY:
+    if not API_KEY or API_KEY == "IHR_API_SCHLÜSSEL":
         raise ValueError("API-Schlüssel wurde nicht in der Konfiguration festgelegt.")
 
-    # Schleife für die Paginierung
+    print("--- Sammle alle Fahrzeug-Listings ---")
     for page_num in range(1, MAX_PAGES + 1):
-        # KORRIGIERTE PARAMETER: Exakte Schreibweise laut Dokumentationsbeispiel
-        params = {
-            'vehicle.make': 'Mercedes-Benz',  # Korrekte Großschreibung
-            'vehicle.model': 'S-Class',  # Korrekte Großschreibung
-            'page': page_num
-        }
-
-        print(f"Sende landesweite Anfrage für Seite {page_num}...")
-        response = requests.get(API_URL, params=params, headers=headers)
+        request_url = f"{BASE_URL}?vehicle.make=Mercedes-Benz&vehicle.model=S-Class&page={page_num}"
+        print(f"Sende Anfrage für Seite {page_num}...")
+        response = requests.get(request_url, headers=headers)
         response.raise_for_status()
 
         data = response.json()
-        vehicle_listings = data.get('results', [])
+        vehicle_listings = data.get('data', [])
 
         if not vehicle_listings:
             print("Keine weiteren Fahrzeuge gefunden. Paginierung beendet.")
             break
 
         new_vehicles_found = 0
-        for vehicle in vehicle_listings:
-            vin = vehicle.get('vin')
+        for vehicle_data in vehicle_listings:
+            vin = vehicle_data.get('vin')
             if vin and vin not in processed_vins:
-                all_vehicles.append(vehicle)
+                vehicle_details = vehicle_data.get('vehicle', {}) or {}
+                retail_details = vehicle_data.get('retailListing', {}) or {}
+
+                # --- HIER WERDEN DIE DATEN DEN NEUEN SPALTEN ZUGEORDNET ---
+                row_data = {
+                    'year': vehicle_details.get('year'),
+                    'make': vehicle_details.get('make'),
+                    'model': vehicle_details.get('model'),
+                    'trim': vehicle_details.get('trim'),
+                    'body': vehicle_details.get('bodyStyle'),  # bodyStyle -> body
+                    'transmission': vehicle_details.get('transmission'),
+                    'vin': vin,
+                    'state': retail_details.get('state'),
+                    # 'used' (boolean) -> 'condition' (Text)
+                    'condition': 'Used' if retail_details.get('used', False) else 'New',
+                    'odometer': retail_details.get('miles'),  # miles -> odometer
+                    'color': vehicle_details.get('exteriorColor'),  # exteriorColor -> color
+                    'interior': vehicle_details.get('interiorColor')  # interiorColor -> interior
+                }
+                # -----------------------------------------------------------
+
+                all_vehicles_for_csv.append(row_data)
                 processed_vins.add(vin)
                 new_vehicles_found += 1
 
         print(f"{new_vehicles_found} neue, einzigartige Fahrzeuge auf dieser Seite gefunden.")
         time.sleep(0.5)
 
-    if not all_vehicles:
-        print(
-            "Es wurden keine Fahrzeuge für 'Mercedes-Benz S-Class' gefunden. Möglicherweise gibt es aktuell keine Listings unter diesem genauen Namen.")
-    else:
-        print(f"\nSuche abgeschlossen. Insgesamt {len(all_vehicles)} einzigartige Fahrzeuge gefunden.")
-        print(f"Schreibe Daten in '{OUTPUT_FILE}'...")
+    if not all_vehicles_for_csv:
+        raise Exception("Es wurden keine Fahrzeuge für 'Mercedes-Benz S-Class' gefunden.")
 
-        fieldnames = [
-            'vin', 'make', 'model', 'year', 'trim',
-            'price', 'mileage', 'city', 'state', 'zip', 'ausstattung'
-        ]
-        with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
-            writer.writeheader()
-            for vehicle in all_vehicles:
-                equipment_list = vehicle.get('features', [])
-                vehicle['ausstattung'] = ", ".join(map(str, equipment_list))
-                writer.writerow(vehicle)
-        print(f"Daten erfolgreich in '{OUTPUT_FILE}' gespeichert!")
+    print(f"\n--- Schreibe {len(all_vehicles_for_csv)} Fahrzeuge in die CSV-Datei ---")
 
-except ValueError as e:
-    print(f"Fehler in der Konfiguration: {e}")
-except requests.exceptions.HTTPError as e:
-    print(f"HTTP-Fehler bei der API-Anfrage: {e.response.status_code} {e.response.reason} für URL: {e.request.url}")
-    try:
-        error_details = e.response.json()
-        print("--- API Fehlerdetails ---\n" + json.dumps(error_details, indent=2) + "\n-------------------------")
-    except json.JSONDecodeError:
-        print("Zusätzliche Fehlerdetails konnten nicht im JSON-Format gelesen werden.")
-except requests.exceptions.RequestException as e:
-    print(f"Netzwerkfehler bei der API-Anfrage: {e}")
+    # Exakte Feldnamen wie von Ihnen gewünscht
+    fieldnames = ['year', 'make', 'model', 'trim', 'body', 'transmission', 'vin', 'state', 'condition', 'odometer',
+                  'color', 'interior']
+
+    with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(all_vehicles_for_csv)
+
+    print(f"Daten erfolgreich in '{OUTPUT_FILE}' gespeichert!")
+
 except Exception as e:
     print(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
 
