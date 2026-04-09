@@ -7,24 +7,27 @@ import json
 API_KEY = "sk_ad_rmkZvJcwP9FccFOyOo9A9j9a"
 
 # Seiten-Parameter
-MAX_PAGES = 10
+MAX_PAGES = 40
 # ==========================================================================
 
 BASE_URL = "https://api.auto.dev/listings"
-OUTPUT_FILE = 'mercedes_s_klasse_datensatz.csv'
+OUTPUT_FILE = 'mercedes_s_klasse_mit_ownerCount.csv'
 
 headers = {
     'x-api-key': API_KEY
 }
 
-all_vehicles_for_csv = []
+all_vehicles_flat = []
 processed_vins = set()
+all_headers = set()
 
 try:
     if not API_KEY or API_KEY == "IHR_API_SCHLÜSSEL":
         raise ValueError("API-Schlüssel wurde nicht in der Konfiguration festgelegt.")
 
-    print("--- Sammle alle Fahrzeug-Listings ---")
+    print("--- Sammle und filtere Fahrzeug-Listings (nur mit 'history'-Daten) ---")
+
+    raw_filtered_listings = []
     for page_num in range(1, MAX_PAGES + 1):
         request_url = f"{BASE_URL}?vehicle.make=Mercedes-Benz&vehicle.model=S-Class&page={page_num}"
         print(f"Sende Anfrage für Seite {page_num}...")
@@ -38,51 +41,59 @@ try:
             print("Keine weiteren Fahrzeuge gefunden. Paginierung beendet.")
             break
 
-        new_vehicles_found = 0
-        for vehicle_data in vehicle_listings:
-            vin = vehicle_data.get('vin')
-            if vin and vin not in processed_vins:
-                vehicle_details = vehicle_data.get('vehicle', {}) or {}
-                retail_details = vehicle_data.get('retailListing', {}) or {}
+        # --- HIER FINDET DIE FILTERUNG STATT ---
+        initial_count = len(vehicle_listings)
+        filtered_page_listings = [
+            vehicle for vehicle in vehicle_listings if
+            vehicle.get('history') and vehicle['history'].get('ownerCount') is not None
+        ]
+        # -----------------------------------------
 
-                # --- HIER WERDEN DIE DATEN DEN NEUEN SPALTEN ZUGEORDNET ---
-                row_data = {
-                    'year': vehicle_details.get('year'),
-                    'make': vehicle_details.get('make'),
-                    'model': vehicle_details.get('model'),
-                    'trim': vehicle_details.get('trim'),
-                    'body': vehicle_details.get('bodyStyle'),  # bodyStyle -> body
-                    'transmission': vehicle_details.get('transmission'),
-                    'vin': vin,
-                    'state': retail_details.get('state'),
-                    # 'used' (boolean) -> 'condition' (Text)
-                    'condition': 'Used' if retail_details.get('used', False) else 'New',
-                    'odometer': retail_details.get('miles'),  # miles -> odometer
-                    'color': vehicle_details.get('exteriorColor'),  # exteriorColor -> color
-                    'interior': vehicle_details.get('interiorColor')  # interiorColor -> interior
-                }
-                # -----------------------------------------------------------
+        if filtered_page_listings:
+            raw_filtered_listings.extend(filtered_page_listings)
+            print(
+                f"{len(filtered_page_listings)} von {initial_count} Fahrzeugen auf dieser Seite hatten die gewünschten History-Daten.")
+        else:
+            print(f"Keines der {initial_count} Fahrzeuge auf dieser Seite hatte die gewünschten History-Daten.")
 
-                all_vehicles_for_csv.append(row_data)
-                processed_vins.add(vin)
-                new_vehicles_found += 1
-
-        print(f"{new_vehicles_found} neue, einzigartige Fahrzeuge auf dieser Seite gefunden.")
         time.sleep(0.5)
 
-    if not all_vehicles_for_csv:
-        raise Exception("Es wurden keine Fahrzeuge für 'Mercedes-Benz S-Class' gefunden.")
+    if not raw_filtered_listings:
+        raise Exception(
+            "Es wurden keine Fahrzeuge für 'Mercedes-Benz S-Class' mit den geforderten History-Daten gefunden.")
 
-    print(f"\n--- Schreibe {len(all_vehicles_for_csv)} Fahrzeuge in die CSV-Datei ---")
+    print(f"\n--- Verarbeite {len(raw_filtered_listings)} gefilterte Fahrzeuge für die CSV-Datei ---")
 
-    # Exakte Feldnamen wie von Ihnen gewünscht
-    fieldnames = ['year', 'make', 'model', 'trim', 'body', 'transmission', 'vin', 'state', 'condition', 'odometer',
-                  'color', 'interior']
+    for vehicle_data in raw_filtered_listings:
+        vin = vehicle_data.get('vin')
+        if vin and vin not in processed_vins:
+
+            def flatten_dict(d, parent_key='', sep='_'):
+                items = {}
+                for k, v in d.items():
+                    new_key = parent_key + sep + k if parent_key else k
+                    if isinstance(v, dict):
+                        items.update(flatten_dict(v, new_key, sep=sep))
+                    elif isinstance(v, list):
+                        items[new_key] = json.dumps(v)
+                    else:
+                        items[new_key] = v
+                return items
+
+
+            flat_row = flatten_dict(vehicle_data)
+            all_vehicles_flat.append(flat_row)
+            processed_vins.add(vin)
+            all_headers.update(flat_row.keys())
+
+    print(f"\n--- Schreibe {len(all_vehicles_flat)} Fahrzeuge mit {len(all_headers)} Spalten in die CSV-Datei ---")
+
+    fieldnames = sorted(list(all_headers))
 
     with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
-        writer.writerows(all_vehicles_for_csv)
+        writer.writerows(all_vehicles_flat)
 
     print(f"Daten erfolgreich in '{OUTPUT_FILE}' gespeichert!")
 
