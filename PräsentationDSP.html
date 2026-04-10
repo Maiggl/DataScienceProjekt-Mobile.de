@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Auto-Predictor - DHBW Data Science</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* 1. THE SETUP */
+        * {
+            box-sizing: border-box;
+        }
+
+        p {
+            margin: 0;
+            margin-bottom: 15px;
+        }
+
+        body {
+            background-color: #020617; /* Slate 950 */
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 1fr;
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px 0;
+            place-items: center;
+        }
+
+        .slide-container {
+            align-items: center;
+            background-color: #0f172a; /* Slate 900 */
+            border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Inter', sans-serif;
+            height: 720px;
+            justify-content: center;
+            overflow: hidden;
+            padding: 60px;
+            position: relative;
+            width: 1280px;
+            border-top: 4px solid #38bdf8; /* Light Blue Accent */
+        }
+
+        /* 1.1 BACKGROUND STYLING */
+        .slide-container::before {
+            content: '';
+            height: 100%;
+            left: 0;
+            position: absolute;
+            top: 0;
+            width: 100%;
+            z-index: 0;
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 100% 100%, rgba(129, 140, 248, 0.05) 0%, transparent 40%);
+        }
+
+        .slide-container>* {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 2. CONSISTENT TYPOGRAPHY */
+        .slide-container h1,
+        .slide-container h2,
+        .slide-container h3 {
+            color: #f8fafc;
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+        }
+
+        .slide-container p,
+        .slide-container li,
+        .slide-container .subtitle,
+        .slide-container .chart-summary,
+        .slide-container th,
+        .slide-container td,
+        .slide-container .number-label {
+            color: #cbd5e1;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Consistent Font Sizes */
+        .slide-container h1 {
+            font-size: 64px;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        .slide-container .slide-title {
+            font-size: 38px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            text-align: left;
+            width: 100%;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .slide-container h3 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .slide-container p,
+        .slide-container li,
+        .slide-container .chart-summary,
+        .slide-container th,
+        .slide-container td {
+            font-size: 19px;
+            line-height: 1.6;
+        }
+
+        .slide-container .subtitle {
+            font-weight: 400;
+            font-size: 22px;
+            margin: 20px auto;
+            text-align: center;
+            max-width: 800px;
+            color: #94a3b8;
+        }
+
+        .slide-container .content-area {
+            align-items: center;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* 3. LAYOUT DEFINITIONS */
+        .title-layout {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .two-column {
+            align-items: flex-start;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            width: 100%;
+        }
+
+        .two-column.tiled {
+            align-items: stretch;
+        }
+
+        .two-column.tiled>div {
+            background-color: #1e293b; /* Slate 800 */
+            border-radius: 12px;
+            border: 1px solid #334155;
+            padding: 40px;
+            text-align: left;
+        }
+
+        .two-column.tiled h3 {
+            color: #38bdf8;
+        }
+
+        .two-column ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .two-column li {
+            margin-bottom: 15px;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .two-column li::before {
+            content: '▹';
+            position: absolute;
+            left: 0;
+            color: #38bdf8;
+            font-weight: bold;
+            font-size: 22px;
+            top: -2px;
+        }
+
+        .image-wrapper {
+            border-radius: 12px;
+            height: 380px;
+            max-width: 100%;
+            overflow: hidden;
+            width: 100%;
+            border: 1px solid #334155;
+            background-color: #0b1120;
+        }
+
+        .image-wrapper img {
+            height: 100%;
+            max-width: 100%;
+            object-fit: cover;
+            width: 100%;
+        }
+
+        .two-column .image-wrapper img {
+            object-fit: contain;
+        }
+
+        .tiled-content {
+            align-items: stretch;
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .tile {
+            align-items: flex-start;
+            background-color: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            justify-content: flex-start;
+            padding: 35px 30px;
+            text-align: left;
+        }
+
+        .tile .icon {
+            color: #38bdf8;
+            font-size: 44px;
+            margin-bottom: 20px;
+        }
+
+        /* Rounded Image Layout */
+        .rounded-image-layout .image-wrapper {
+            border-radius: 50%;
+            flex-shrink: 0;
+            height: 380px;
+            width: 380px;
+            max-width: 380px;
+            margin: 0 auto;
+            border: 4px solid #38bdf8;
+        }
+
+        .rounded-image-layout .image-wrapper img {
+            object-fit: cover;
+            max-width: 380px;
+        }
+
+        .rounded-image-layout.two-column {
+            align-items: center;
+        }
+
+        /* Table Layout */
+        .table-layout {
+            width: 100%;
+            background-color: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .table-layout table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .table-layout th,
+        .table-layout td {
+            padding: 16px 20px;
+            text-align: left;
+        }
+
+        .table-layout th {
+            background-color: #0b1120;
+            color: #38bdf8;
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
+            border-bottom: 2px solid #334155;
+        }
+        
+        .table-layout td {
+            border-bottom: 1px solid #334155;
+            font-size: 16px; /* Slightly smaller for data fit */
+        }
+
+        .table-layout tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Timeline Layout */
+        .timeline-layout {
+            align-items: stretch;
+            display: flex;
+            height: stretch;
+            justify-content: space-between;
+            position: relative;
+            width: 100%;
+            margin-top: 80px;
+        }
+
+        .timeline-layout .timeline-line {
+            background-color: #334155;
+            height: 4px;
+            left: 0;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-2px);
+            width: 100%;
+            z-index: 0;
+        }
+
+        .timeline-item {
+            position: relative;
+            text-align: center;
+            width: 19%; /* 5 items -> ~19% */
+        }
+
+        .timeline-item::after {
+            background-color: #0f172a;
+            border-radius: 50%;
+            border: 4px solid #38bdf8;
+            content: '';
+            height: 24px;
+            left: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 24px;
+            z-index: 1;
+        }
+
+        /* Highlight completed timeline items */
+        .timeline-item.completed::after {
+            background-color: #4ade80; /* Green highlight for completed */
+            border-color: #4ade80;
+        }
+        .timeline-item.completed h3 {
+            color: #4ade80;
+        }
+
+        .timeline-item .content-wrapper {
+            left: 0;
+            position: absolute;
+            width: 100%;
+        }
+
+        .timeline-item:nth-child(odd) .content-wrapper {
+            bottom: 50%;
+            margin-bottom: 35px;
+        }
+
+        .timeline-item:nth-child(even) .content-wrapper {
+            margin-top: 35px;
+            top: 50%;
+        }
+
+        .timeline-item h3 {
+            color: #38bdf8;
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+        
+        .timeline-item p {
+            font-size: 16px;
+        }
+
+        /* Bleed_Image_Right layout */
+        .slide-container.bleed-image-layout {
+            align-items: start;
+            display: grid;
+            gap: 50px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            padding: 0;
+        }
+
+        .slide-container.bleed-image-layout>.content-container {
+            padding: 60px 0 60px 60px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .slide-container.bleed-image-layout>.image-container {
+            height: 100%;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .slide-container.bleed-image-layout img.bleed-image-side {
+            border-radius: 0 12px 12px 0;
+            display: block;
+            height: 720px;
+            object-fit: cover;
+            object-position: center;
+            width: 100%;
+            opacity: 0.8;
+        }
+
+        .slide-container.bleed-image-layout .bleed-text-side {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            flex-grow: 1;
+        }
+
+        /* Q&A Layout */
+        .qa-layout {
+            margin: 0 auto;
+            text-align: center;
+            width: 100%;
+            align-self: center;
+        }
+
+        .qa-layout h2 {
+            font-size: 80px;
+            margin-bottom: 20px;
+            color: #38bdf8;
+        }
+
+        .qa-layout p {
+            font-size: 24px;
+        }
+
+        .qa-layout .contact-info {
+            color: #94a3b8;
+            font-size: 20px;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #334155;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Slide 1: Title_Slide -->
+<div class="slide-container" id="slide1">
+    <div class="title-layout">
+        <h3 style="color: #818cf8; letter-spacing: 2px; text-transform: uppercase; font-size: 20px; margin-bottom: 20px;">DHBW Karlsruhe &bull; Data Science & KI</h3>
+        <h1>Smart Auto-Predictor</h1>
+        <div style="width: 100px; height: 4px; background-color: #38bdf8; margin: 30px 0; border-radius: 2px;"></div>
+        <p class="subtitle">Datenanalyse & KI-gestützte Preisprädiktion für Mercedes-Benz Modelle auf mobile.de</p>
+        <p style="color: #64748b; margin-top: 40px; font-weight: 500;">Zwischenpräsentation</p>
+    </div>
+</div>
+
+<!-- Slide 2: Rounded_Image_and_Text -->
+<div class="slide-container" id="slide2">
+    <h2 class="slide-title">Die Mission</h2>
+    <div class="content-area">
+        <div class="two-column rounded-image-layout">
+            <div>
+                <div class="image-wrapper">
+                    <img src="g63mainheader.avif" alt="Mercedes-Benz G-Klasse">
+                </div>
+            </div>
+            <div>
+                <h3 style="color: #38bdf8; font-size: 34px;">Preistransparenz schaffen</h3>
+                <p style="margin-bottom: 20px;">Der Gebrauchtwagenmarkt ist hochkomplex. Unser Projekt zielt darauf ab, die Informationsasymmetrie durch Daten zu lösen:</p>
+                <ul style="list-style: none; padding-left: 0;">
+                    <li style="padding-left: 30px; position: relative; margin-bottom: 15px;">
+                        <i class="fa-solid fa-tag" style="position: absolute; left: 0; top: 3px; color: #818cf8;"></i>
+                        <strong>Für Verkäufer:</strong> Eine objektive, algorithmische Berechnung des optimalen Verkaufspreises basierend auf exakten Live-Daten.
+                    </li>
+                    <li style="padding-left: 30px; position: relative;">
+                        <i class="fa-solid fa-magnifying-glass-chart" style="position: absolute; left: 0; top: 3px; color: #818cf8;"></i>
+                        <strong>Für Käufer:</strong> Smart-Search nach spezifischen Merkmalskombinationen (z.B. "G-Klasse + AMG-Paket") zur Identifikation von unterbewerteten Inseraten.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 3: Timeline -->
+<div class="slide-container" id="slide3">
+    <h2 class="slide-title">Projektphasen & Status Quo</h2>
+    <div class="content-area">
+        <div class="timeline-layout">
+            <div class="timeline-line"></div>
+            <!-- Completed Item -->
+            <div class="timeline-item completed">
+                <div class="content-wrapper">
+                    <h3><i class="fa-solid fa-check"></i> Beschaffung</h3>
+                    <p>Web-Scraping (mobile.de)<br>API Daten einlesen & CSV-Export (auto.dev/vehicles Listings)</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="content-wrapper">
+                    <h3>2. Aufbereitung</h3>
+                    <p>Data Cleaning, Parsing & EDA</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="content-wrapper">
+                    <h3>3. ML & MLOps</h3>
+                    <p>Training & Tracking (Scikit-learn/PyTorch)</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="content-wrapper">
+                    <h3>4. DB & Backend</h3>
+                    <p>Datenbanken, FastAPI & Visualisierung</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="content-wrapper">
+                    <h3>5. Cloud Hosting</h3>
+                    <p>Docker, CI/CD & Deployment</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 4: Image_Right_Text_Left (STATUS QUO) -->
+<div class="slide-container" id="slide4">
+    <h2 class="slide-title">Status Quo: Datenbeschaffung (Abgeschlossen)</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <p>Wir haben erfolgreich Live-Marktdaten von Mercedes-Benz Modellen extrahiert und gängige Anti-Bot-Maßnahmen überwunden.</p>
+                <ul>
+                    <li><strong>Dynamisches Web-Scraping:</strong> Unser Python-Skript nutzt einen getarnten <em>Selenium</em>-Browser (uc=True), um Captchas zu umgehen und JavaScript-Inhalte nachzuladen.</li>
+                    <li><strong>Statisches Parsing:</strong> Mit <em>BeautifulSoup 4</em> filtern wir gezielt die HTML-Strukturen der Detailseiten nach Preis, KM, EZ und extrahieren die vollständigen Ausstattungslisten.</li>
+                    <li><strong>Das Ergebnis:</strong> Ein lokaler, hochdetaillierter CSV-Datensatz (z.B. G-Klasse), der uns nun als verlässliche Grundlage für die Modellierung dient.</li>
+                </ul>
+            </div>
+            <div>
+                <div class="image-wrapper">
+                    <img src="Code.png" alt="Python Code">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 5: Table (STATUS QUO DATA) -->
+<div class="slide-container" id="slide5">
+    <h2 class="slide-title">Blick in den Datensatz (Rohdaten G-Klasse)</h2>
+    <div class="content-area">
+        <p style="margin-bottom: 20px; align-self: flex-start;">Auszug aus unserem erfolgreich generierten Scraper-Lauf:</p>
+        <div class="table-layout">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Titel</th>
+                        <th>Preis</th>
+                        <th>KM</th>
+                        <th>EZ</th>
+                        <th>PS</th>
+                        <th>Ausstattung (Auszug)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Mercedes-Benz G 63 AMG</td>
+                        <td>105.000 €</td>
+                        <td>25.000</td>
+                        <td>05/2017</td>
+                        <td>571</td>
+                        <td>ABS, Allrad, Android Auto, Burmester...</td>
+                    </tr>
+                    <tr>
+                        <td>MB G 280 CDI Pur Greenliner</td>
+                        <td>38.900 €</td>
+                        <td>95.326</td>
+                        <td>11/2008</td>
+                        <td>184</td>
+                        <td>Standheizung, Laderaum Holz, 24V Radio...</td>
+                    </tr>
+                    <tr>
+                        <td>MB G 280 CDI Pur Greenliner</td>
+                        <td>33.800 €</td>
+                        <td>138.455</td>
+                        <td>09/2008</td>
+                        <td>184</td>
+                        <td>Klimaanlage, Differentialsperre, Reserverad...</td>
+                    </tr>
+                    <tr>
+                        <td>Mercedes-Benz G 500</td>
+                        <td>114.900 €</td>
+                        <td>97.000</td>
+                        <td>11/2019</td>
+                        <td>421</td>
+                        <td>AMG Line, Widescreen, Multibeam LED...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 6: Tiled_Text_With_Icons (NEXT STEPS) -->
+<div class="slide-container" id="slide6">
+    <h2 class="slide-title">Nächste Schritte: Aufbereitung & Analyse</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="tile">
+                <div class="icon"><i class="fa-solid fa-filter"></i></div>
+                <h3>Verarbeitung</h3>
+                <p>Nutzung von <strong>Pandas</strong> als Industriestandard für das Feature-Engineering (z.B. One-Hot-Encoding von Ausstattungen) und <strong>Polars</strong> für extrem schnelle, in Rust geschriebene Berechnungen.</p>
+            </div>
+            <div class="tile">
+                <div class="icon"><i class="fa-brands fa-python"></i></div>
+                <h3>Umgebung</h3>
+                <p>Einsatz von <strong>Jupyter Notebooks</strong> für die explorative Datenanalyse (EDA). Für rechenintensive Prozesse wechseln wir zu <strong>Google Colab</strong>, um kostenfreien GPU-Zugriff zu nutzen.</p>
+            </div>
+            <div class="tile">
+                <div class="icon"><i class="fa-solid fa-chart-pie"></i></div>
+                <h3>Visualisierung</h3>
+                <p>Tiefe Datenexploration mittels <strong>Matplotlib</strong> (Basis) und <strong>Seaborn</strong> für statistisch anspruchsvolle Grafiken, sowie <strong>Plotly</strong> für interaktive Dashboard-Diagramme.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 7: Bleed_Image_Right (NEXT STEPS) -->
+<div class="slide-container bleed-image-layout" id="slide7">
+    <div class="content-container">
+        <h2 class="slide-title">Ausblick: Machine Learning & MLOps</h2>
+        <div class="content-area">
+            <div class="bleed-text-side">
+                <p>Auf Basis unseres fertigen Datensatzes entwickeln wir in der kommenden Phase die KI-Modelle zur Preisprädiktion:</p>
+                <ul>
+                    <li style="margin-bottom: 25px;"><strong>Klassisches ML:</strong> Wir nutzen <em>Scikit-learn</em> für den Aufbau baumbasierter Regressionsmodelle (wie Random Forest oder XGBoost), um den fairen Marktpreis exakt zu schätzen.</li>
+                    <li style="margin-bottom: 25px;"><strong>Deep Learning & NLP:</strong> Einsatz von <em>PyTorch</em> & <em>TensorFlow</em> sowie Hugging Face Modellen, um komplexe Muster und Textinformationen aus der unstrukturierten Fahrzeugbeschreibung auszulesen.</li>
+                    <li style="margin-bottom: 25px;"><strong>Cloud AI:</strong> Potenzielle Anbindung von <em>Vertex AI</em> für die Nutzung modernster Google-Modelle im Hintergrund.</li>
+                    <li style="margin-bottom: 25px;"><strong>MLOps:</strong> Integration von <em>Weights & Biases</em>, um die Performance unserer Trainingsläufe (Loss und Accuracy) sauber zu tracken und versionieren.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="image-container">
+        <img class="" src="ML.png" alt="Künstliche Intelligenz">
+    </div>
+</div>
+
+<!-- Slide 8: Two_Column_Tiled_Text (NEXT STEPS) -->
+<div class="slide-container" id="slide8">
+    <h2 class="slide-title">Ausblick: Datenbanken & Backend</h2>
+    <div class="content-area">
+        <div class="two-column tiled">
+            <div>
+                <h3>Das Datenbank-Ökosystem</h3>
+                <p>Strukturierte Speicherung für Performance und Skalierbarkeit:</p>
+                <ul>
+                    <li><strong>Lokal/Test:</strong> Migration der CSV-Daten in <em>SQLite</em> (Zero-Setup).</li>
+                    <li><strong>Relational (Cloud):</strong> Skalierung auf <em>PostgreSQL, MySQL, MariaDB, SQL Server, Percona</em> oder <em>Timescale</em> (für Time-Series).</li>
+                    <li><strong>NoSQL & Vector:</strong> <em>MongoDB Atlas</em> für JSON-Dumps, <em>Supabase</em> für BaaS und <em>Qdrant</em> für KI-Embeddings.</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Backend & Web-Apps</h3>
+                <p>Schnittstellen für unsere Predictive-Modelle:</p>
+                <ul>
+                    <li><strong>API:</strong> <em>FastAPI</em>. Extrem schnell, asynchron und generiert automatische Swagger-Dokus (JSON Response).</li>
+                    <li><strong>User-Interface:</strong> Frameworks wie <em>Streamlit</em> und <em>Gradio</em> ermöglichen es uns, das finale Vorhersagemodell in ein interaktives Dashboard für Nutzer zu verwandeln.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 9: Image_Right_Text_Left (NEXT STEPS) -->
+<div class="slide-container" id="slide9">
+    <h2 class="slide-title">Ausblick: Cloud, Hosting & Automation</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <p>Um das System dauerhaft und automatisiert laufen zu lassen, setzen wir auf professionelle Cloud-Architekturen:</p>
+                <ul>
+                    <li><strong>Containerisierung:</strong> Vollständige Kapselung aller Komponenten in <em>Docker</em> Containern für ein einheitliches Deployment.</li>
+                    <li><strong>CI/CD Pipelines:</strong> <em>GitHub</em> Actions (Pro/Copilot via Student Pack) zur Ausführung täglicher Scraper-Jobs (2.000 Gratis-Minuten).</li>
+                    <li><strong>Cloud Provider Evaluierung:</strong>
+                        <ul style="margin-top: 10px;">
+                            <li><em>AWS:</em> Lambda, DynamoDB (12 Monate Free Tier).</li>
+                            <li><em>Google Cloud:</em> e2-micro VM, 300$ Startguthaben.</li>
+                            <li><em>Azure:</em> App Service F1, Azure Functions.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <div>
+                <div class="image-wrapper">
+                    <img src="hosting.png" alt="Cloud Server">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 10: Q&A -->
+<div class="slide-container" id="slide10">
+    <div class="qa-layout">
+        <h2>Fragen?</h2>
+        <p style="color: #cbd5e1;">Vielen Dank für Ihre Aufmerksamkeit!</p>
+        <div class="contact-info">
+            DHBW Karlsruhe &bull; Data Science & KI Projektgruppe
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
