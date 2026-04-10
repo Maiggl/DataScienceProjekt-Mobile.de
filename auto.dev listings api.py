@@ -4,14 +4,14 @@ import time
 import json
 
 # ============================ KONFIGURATION ===============================
-API_KEY = "sk_ad_rmkZvJcwP9FccFOyOo9A9j9a"
+API_KEY = "sk_ad_ZF_y6274NrUEe4T97RjrYTaX"
 
 # Seiten-Parameter
-MAX_PAGES = 40
+MAX_PAGES = 200
 # ==========================================================================
 
 BASE_URL = "https://api.auto.dev/listings"
-OUTPUT_FILE = 'mercedes_s_klasse_mit_ownerCount.csv'
+OUTPUT_FILE = 'ford_f_series_mit_ownerCount.csv'
 
 headers = {
     'x-api-key': API_KEY
@@ -29,7 +29,7 @@ try:
 
     raw_filtered_listings = []
     for page_num in range(1, MAX_PAGES + 1):
-        request_url = f"{BASE_URL}?vehicle.make=Mercedes-Benz&vehicle.model=S-Class&page={page_num}"
+        request_url = f"{BASE_URL}?vehicle.make=Ford&vehicle.model=F-150,F-250,F-350&page={page_num}"
         print(f"Sende Anfrage für Seite {page_num}...")
         response = requests.get(request_url, headers=headers)
         response.raise_for_status()
@@ -99,4 +99,3 @@ try:
 
 except Exception as e:
     print(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
-
