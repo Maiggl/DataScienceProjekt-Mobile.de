@@ -28,14 +28,10 @@ def cmd_clean(args: argparse.Namespace) -> None:
     market = args.market.upper()
 
     if market == "US":
-        # adjust if your US cleaner uses different CLI args
-        # If your cleaner doesn't accept args and is hardcoded,
-        # just run it as-is: python data-preperation_us.py
+        # US cleaner expects: python data-preperation_us.py <input_csv>
         cmd = ["python", "data-preperation_us.py"]
         if args.input:
-            cmd += ["--input", args.input]
-        if args.output:
-            cmd += ["--output", args.output]
+            cmd += [args.input]
         _run(cmd)
         return
 
