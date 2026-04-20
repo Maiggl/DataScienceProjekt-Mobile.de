@@ -36,11 +36,10 @@ def cmd_clean(args: argparse.Namespace) -> None:
         return
 
     if market == "DE":
+        # DE cleaner expects: python data-preperation_de.py <input_csv>
         cmd = ["python", "data-preperation_de.py"]
         if args.input:
-            cmd += ["--input", args.input]
-        if args.output:
-            cmd += ["--output", args.output]
+            cmd += [args.input]
         _run(cmd)
         return
 
