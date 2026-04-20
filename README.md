@@ -24,16 +24,19 @@ sk_ad_ZF_y6274NrUEe4T97RjrYTaX
 
 ### Clean (nur Cleaning ausführen)
 
-US (Input ist ein positional argument im US-Cleaner; Output ist automatisch `cleaned_{input_filename}`):
+US:
 ```bash
 python pipeline.py clean --market US --input "raw_us.csv"
-# output: cleaned_raw_us.csv
+# output (vom Cleaner automatisch): cleaned_raw_us.csv
 ```
 
-DE (falls euer DE-Cleaner `--input/--output` unterstützt):
+DE:
 ```bash
-python pipeline.py clean --market DE --input "raw_de.csv" --output "cleaned_mobile_de_erweitert_Aklasse.csv"
+python pipeline.py clean --market DE --input "raw_de.csv"
+# output (vom Cleaner automatisch): cleaned_raw_de.csv
 ```
+
+> Hinweis: Beide Cleaner schreiben standardmäßig `cleaned_{basename(input)}` in das aktuelle Working Directory.
 
 ---
 
@@ -60,7 +63,7 @@ python pipeline.py run --market US --input "raw_us.csv" --cleaned "cleaned_raw_u
 
 DE:
 ```bash
-python pipeline.py run --market DE --input "raw_de.csv" --output "cleaned_mobile_de_erweitert_Aklasse.csv" --cleaned "cleaned_mobile_de_erweitert_Aklasse.csv" --dataset-id 7
+python pipeline.py run --market DE --input "raw_de.csv" --cleaned "cleaned_raw_de.csv" --dataset-id 7
 ```
 
 ---
